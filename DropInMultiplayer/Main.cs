@@ -6,6 +6,7 @@ using RoR2;
 using System;
 using System.Collections;
 using System.Collections.Generic;
+using System.Collections.ObjectModel;
 using System.Linq;
 using UnityEngine;
 using UnityEngine.Networking;
@@ -152,6 +153,17 @@ namespace DropInMultiplayer
             new List<string> { "LunarWispBody", "WispLunarChimera", "LunarWisp"},
 
         };
+
+        /*
+        public static List<ItemIndex> bossitemList = new List<ItemIndex>{
+            ItemIndex.NovaOnLowHealth,
+            ItemIndex.Knurl,
+            ItemIndex.BeetleGland,
+            ItemIndex.TitanGoldDuringTP,
+            ItemIndex.SprintWisp,
+            //Excluding pearls because those aren't boss items, they come from the Cleansing Pool 
+        };
+        */
         #endregion
         #region Methods
         private ItemIndex GetRandomItem(List<ItemIndex> items)
@@ -200,7 +212,7 @@ namespace DropInMultiplayer
             Hook();
         }
         private void DefineConfig() {
-            ImmediateSpawn = Config.Bind("Enable/Disable", "ImmediateSpawn", false, "Enables or disables immediate spawning as you join");
+            ImmediateSpawn = Config.Bind("Enable/Disable", "ImmediateSpawn", true, "Enables or disables immediate spawning as you join");
             NormalSurvivorsOnly = Config.Bind("Enable/Disable", "NormalSurvivorsOnly", true, "Changes whether or not join_as can only be used to turn into survivors");
             StartWithItems = Config.Bind("Enable/Disable", "StartWithItems", true, "Enables or disables giving players items if they join mid-game");
             AllowSpawnAsWhileAlive = Config.Bind("Enable/Disable", "AllowJoinAsWhileAlive", false, "Enables or disables players using join_as while alive");
@@ -250,6 +262,120 @@ namespace DropInMultiplayer
         private void GiveItems(On.RoR2.Run.orig_SetupUserCharacterMaster orig, Run self, NetworkUser user)
         {
             orig(self, user);
+
+            /*
+             * **********************************************************************
+             * more or less copied from https://github.com/xiaoxiao921/DropInMultiplayer/blob/master/DropInMultiplayerFix/Main.cs
+             * **********************************************************************
+             */
+            if (!StartWithItems.Value || Run.instance.fixedTime < 5f)
+            {
+                return;
+            }
+
+            //the way i did this is confusing so i'm just gonna explain these int names
+            /*
+            averageItemCountT1 = average item count tier 1 
+            averageItemCountT2 = average item count tier 2 
+            averageItemCountT3 = average item count tier 3
+            averageItemCountTL = average item count tier lunar
+            averageItemCountTB = average item count tier boss
+            yes i do know lunar isn't really a tier but shhhhhhhhhhh
+            */
+            int averageItemCountT1 = 0;
+            int averageItemCountT2 = 0;
+            int averageItemCountT3 = 0;
+            int averageItemCountTL = 0;
+            // int averageItemCountTB = 0;
+
+            ReadOnlyCollection<NetworkUser> readOnlyInstancesList = NetworkUser.readOnlyInstancesList;
+
+            int playerCount = PlayerCharacterMasterController.instances.Count;
+            if (playerCount <= 1)
+                return;
+            else
+                playerCount--;
+
+            for (int i = 0; i < readOnlyInstancesList.Count; i++)
+            {
+                if (readOnlyInstancesList[i].id.Equals(user.id))
+                    continue;
+                CharacterMaster cm = readOnlyInstancesList[i].master;
+                averageItemCountT1 += cm.inventory.GetTotalItemCountOfTier(ItemTier.Tier1);
+                averageItemCountT2 += cm.inventory.GetTotalItemCountOfTier(ItemTier.Tier2);
+                averageItemCountT3 += cm.inventory.GetTotalItemCountOfTier(ItemTier.Tier3);
+                averageItemCountTL += cm.inventory.GetTotalItemCountOfTier(ItemTier.Lunar);
+                // averageItemCountTB += cm.inventory.GetTotalItemCountOfTier(ItemTier.Boss);
+            }
+
+            averageItemCountT1 /= playerCount;
+            averageItemCountT2 /= playerCount;
+            averageItemCountT3 /= playerCount;
+            averageItemCountTL /= playerCount;
+            // averageItemCountTB /= playerCount;
+
+            CharacterMaster characterMaster = user.master;
+            int itemCountT1 = averageItemCountT1 - characterMaster.inventory.GetTotalItemCountOfTier(ItemTier.Tier1);
+            int itemCountT2 = averageItemCountT2 - characterMaster.inventory.GetTotalItemCountOfTier(ItemTier.Tier2);
+            int itemCountT3 = averageItemCountT3 - characterMaster.inventory.GetTotalItemCountOfTier(ItemTier.Tier3);
+            int itemCountTL = averageItemCountTL - characterMaster.inventory.GetTotalItemCountOfTier(ItemTier.Lunar);
+            // int itemCountTB = averageItemCountTL - characterMaster.inventory.GetTotalItemCountOfTier(ItemTier.Boss);
+
+            itemCountT1 = itemCountT1 < 0 ? 0 : itemCountT1;
+            itemCountT2 = itemCountT2 < 0 ? 0 : itemCountT2;
+            itemCountT3 = itemCountT3 < 0 ? 0 : itemCountT3;
+            itemCountTL = itemCountTL < 0 ? 0 : itemCountTL;
+            // itemCountTB = itemCountTB < 0 ? 0 : itemCountTB;
+
+            /*
+            if (GiveExactItems.Value)
+            {
+                characterMaster.inventory.GiveItem(GetRandomItem(ItemCatalog.tier1ItemList), itemCountT1);
+                characterMaster.inventory.GiveItem(GetRandomItem(ItemCatalog.tier2ItemList), itemCountT2);
+                if (GiveRedItems.Value)
+                {
+                    characterMaster.inventory.GiveItem(GetRandomItem(ItemCatalog.tier3ItemList), itemCountT3);
+                }
+                if (GiveLunarItems.Value)
+                {
+                    characterMaster.inventory.GiveItem(GetRandomItem(ItemCatalog.lunarItemList), itemCountTL);
+                }
+            }
+            */
+
+            Debug.Log(itemCountT1 + " " + itemCountT2 + " " + itemCountT3 + " itemcount to add");
+            Debug.Log(averageItemCountT1 + " " + averageItemCountT2 + " " + averageItemCountT3 + " average");
+            for (int i = 0; i < itemCountT1; i++)
+            {
+                characterMaster.inventory.GiveItem(GetRandomItem(ItemCatalog.tier1ItemList), 1);
+            }
+            for (int i = 0; i < itemCountT2; i++)
+            {
+                characterMaster.inventory.GiveItem(GetRandomItem(ItemCatalog.tier2ItemList), 1);
+            }
+            if (GiveRedItems.Value)
+            {
+                for (int i = 0; i < itemCountT3; i++)
+                {
+                    characterMaster.inventory.GiveItem(GetRandomItem(ItemCatalog.tier3ItemList), 1);
+                }
+            }
+            if (GiveLunarItems.Value)
+            {
+                for (int i = 0; i < itemCountTL; i++)
+                {
+                    characterMaster.inventory.GiveItem(GetRandomItem(ItemCatalog.lunarItemList), 1);
+                }
+            }
+            /*
+            if (GiveBossItems.Value)
+            {
+                for (int i = 0; i < itemCountTB; i++)
+                {
+                    characterMaster.inventory.GiveItem(GetRandomItem(bossitemList), 1);
+                }
+            }
+            */
         }
 
         private void FirstFrame() {

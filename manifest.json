@@ -1,0 +1,21 @@
+{
+    "ManifestVersion": 2,
+    "AuthorName": "WhipeeDip",
+    "Name": "WhipeeDip-DropInMultiplayer",
+    "DisplayName": "DropInMultiplayer",
+    "Version": "0.0.2",
+    "Licence": "",
+    "WebsiteURL": "https://github.com/WhipeeDip/DropInMultiplayer",
+    "Description": "Compiled version of AwokeinanEnigma/DropInMultiplayer with xiaoxiao921/DropInMultiplayer give item logic.",
+    "GameVersion": "N/A",
+    "Dependencies": [],
+    "OptionalDependencies": [],
+    "Incompatibilities": [],
+    "NetworkMode": "both",
+    "PackageType": "mod",
+    "InstallMode": "managed",
+    "Loaders": [
+        "bepinex"
+    ],
+    "ExtraData": {}
+}
